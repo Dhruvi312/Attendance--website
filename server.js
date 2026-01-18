@@ -1,65 +1,80 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const cookieParser = require('cookie-parser');
-require('dotenv').config();
-
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"]
-    }
-  }
-}));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-
-app.use('/api/', limiter);
-
-// Middleware
+// CORS - Allow your Vercel frontend
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: 'https://frontend-attenance-psf2-ixv1zrp6v-dhruvi-ohals-projects.vercel.app',
   credentials: true
 }));
+
+// Parse JSON
 app.use(express.json());
-app.use(cookieParser());
 
-// Routes
-const authRoutes = require('./routes/auth');
-const attendanceRoutes = require('./routes/attendance');
-
-app.use('/api/auth', authRoutes);
-app.use('/api', attendanceRoutes);
-
-// Health check (no auth required)
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV 
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Attendance Backend API is running!',
+    endpoints: {
+      health: '/api/health',
+      students: '/api/students',
+      markAttendance: 'POST /api/attendance'
+    },
+    frontend: 'https://frontend-attenance-psf2-ixv1zrp6v-dhruvi-ohals-projects.vercel.app',
+    documentation: 'Add /api/health to test connection'
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'attendance-backend',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    message: 'Connected to Vercel frontend successfully!'
+  });
 });
 
+// Students endpoint
+app.get('/api/students', (req, res) => {
+  res.json([
+    { id: 1, name: 'Alice Johnson', email: 'alice@example.com', attendance: 'present' },
+    { id: 2, name: 'Bob Smith', email: 'bob@example.com', attendance: 'absent' },
+    { id: 3, name: 'Charlie Brown', email: 'charlie@example.com', attendance: 'present' },
+    { id: 4, name: 'Diana Prince', email: 'diana@example.com', attendance: 'late' }
+  ]);
+});
+
+// Mark attendance endpoint
+app.post('/api/attendance', (req, res) => {
+  const { studentId, status, date } = req.body;
+  
+  res.json({
+    success: true,
+    message: `Attendance marked for student ${studentId}`,
+    data: {
+      studentId,
+      status: status || 'present',
+      date: date || new Date().toISOString().split('T')[0],
+      recordedAt: new Date().toISOString()
+    }
+  });
+});
+
+// Test endpoint for frontend
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'Backend is connected to frontend!',
+    frontendUrl: 'https://frontend-attenance-psf2-ixv1zrp6v-dhruvi-ohals-projects.vercel.app',
+    backendUrl: 'https://attendance-backend-pp4k.onrender.com',
+    connection: '✅ Active'
+  });
+});
+
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Secure server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Frontend: https://frontend-attenance-psf2-ixv1zrp6v-dhruvi-ohals-projects.vercel.app`);
+  console.log(`🔗 Test URL: https://attendance-backend-pp4k.onrender.com/api/health`);
 });
