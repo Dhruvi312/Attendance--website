@@ -2,79 +2,74 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 
-// CORS - Allow your Vercel frontend
+// ✅ CRITICAL FIX: Update CORS to allow your Vercel domain
+const allowedOrigins = [
+  'https://frontend-attenance-psf2.vercel.app',
+  'https://frontend-attenance-psf2-*.vercel.app',
+  'https://frontend-attendance.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:8080'
+];
+
 app.use(cors({
-  origin: 'https://frontend-attenance-psf2-ixv1zrp6v-dhruvi-ohals-projects.vercel.app',
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin.includes('*')) {
+        const pattern = allowedOrigin.replace('*', '.*');
+        return new RegExp(pattern).test(origin);
+      }
+      return origin === allowedOrigin;
+    });
+    
+    if (isAllowed) {
+      return callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      console.log('✅ Allowed origins:', allowedOrigins);
+      return callback(new Error(`CORS policy: Origin ${origin} not allowed`), false);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'Authorization'],
+  maxAge: 86400 // 24 hours
 }));
 
 // Parse JSON
 app.use(express.json());
 
-// Root route
+// Your routes (keep existing)
 app.get('/', (req, res) => {
   res.json({
-    message: 'Attendance Backend API is running!',
-    endpoints: {
-      health: '/api/health',
-      students: '/api/students',
-      markAttendance: 'POST /api/attendance'
-    },
-    frontend: 'https://frontend-attenance-psf2-ixv1zrp6v-dhruvi-ohals-projects.vercel.app',
-    documentation: 'Add /api/health to test connection'
+    message: 'Attendance Backend API',
+    status: 'running',
+    endpoints: ['/health', '/students', '/attendance'],
+    frontend: 'https://frontend-attenance-psf2.vercel.app'
   });
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
     service: 'attendance-backend',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    message: 'Connected to Vercel frontend successfully!'
+    environment: process.env.NODE_ENV || 'production',
+    message: 'Connected to Vercel frontend successfully!',
+    allowedOrigins: allowedOrigins
   });
 });
 
-// Students endpoint
-app.get('/api/students', (req, res) => {
-  res.json([
-    { id: 1, name: 'Alice Johnson', email: 'alice@example.com', attendance: 'present' },
-    { id: 2, name: 'Bob Smith', email: 'bob@example.com', attendance: 'absent' },
-    { id: 3, name: 'Charlie Brown', email: 'charlie@example.com', attendance: 'present' },
-    { id: 4, name: 'Diana Prince', email: 'diana@example.com', attendance: 'late' }
-  ]);
-});
-
-// Mark attendance endpoint
-app.post('/api/attendance', (req, res) => {
-  const { studentId, status, date } = req.body;
-  
-  res.json({
-    success: true,
-    message: `Attendance marked for student ${studentId}`,
-    data: {
-      studentId,
-      status: status || 'present',
-      date: date || new Date().toISOString().split('T')[0],
-      recordedAt: new Date().toISOString()
-    }
-  });
-});
-
-// Test endpoint for frontend
-app.get('/api/test', (req, res) => {
-  res.json({
-    message: 'Backend is connected to frontend!',
-    frontendUrl: 'https://frontend-attenance-psf2-ixv1zrp6v-dhruvi-ohals-projects.vercel.app',
-    backendUrl: 'https://attendance-backend-pp4k.onrender.com',
-    connection: '✅ Active'
-  });
-});
+// Add more routes as needed...
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Frontend: https://frontend-attenance-psf2-ixv1zrp6v-dhruvi-ohals-projects.vercel.app`);
-  console.log(`🔗 Test URL: https://attendance-backend-pp4k.onrender.com/api/health`);
+  console.log(`🌐 Allowed origins:`, allowedOrigins);
+  console.log(`🔗 Health check: https://attendance-backend-pp4k.onrender.com/health`);
 });
